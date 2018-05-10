@@ -20,6 +20,10 @@ class GameScene: SKScene {
     
     var activeSliceBG: SKShapeNode!
     var activeSliceFG: SKShapeNode!
+    
+    var activeSlicePoints = [CGPoint]()
+    
+    var isSwooshSoundActive = false
 
     //MARK: Methods
     
@@ -61,6 +65,42 @@ class GameScene: SKScene {
         addChild(activeSliceFG)
     }
     
+    func redrawActiveSlice() {
+        
+        if activeSlicePoints.count < 2 {
+            activeSliceBG.path = nil
+            activeSliceFG.path = nil
+            return
+        }
+        
+        while activeSlicePoints.count > 12 {
+            activeSlicePoints.remove(at: 0)
+        }
+        
+        let path = UIBezierPath()
+        path.move(to: activeSlicePoints[0])
+        
+        for i in 1 ..< activeSlicePoints.count {
+            path.addLine(to: activeSlicePoints[i])
+        }
+        
+        activeSliceBG.path = path.cgPath
+        activeSliceFG.path = path.cgPath
+    }
+    
+    func playSwooshSound() {
+        isSwooshSoundActive = true
+        
+        let randomNumber = RandomInt(min: 1, max: 3)
+        let soundName = "swoosh\(randomNumber).caf"
+        
+        let swooshSound = SKAction.playSoundFileNamed(soundName, waitForCompletion: true)
+        
+        run(swooshSound) { [unowned self] in
+            self.isSwooshSoundActive = false
+        }
+    }
+    
     //MARK: Method Overrides
     
     override func didMove(to view: SKView) {
@@ -79,6 +119,43 @@ class GameScene: SKScene {
     }
     
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        super.touchesBegan(touches, with: event)
+        
+        activeSlicePoints.removeAll(keepingCapacity: true)
+        
+        if let touch = touches.first {
+            let location = touch.location(in: self)
+            activeSlicePoints.append(location)
+            
+            redrawActiveSlice()
+            
+            activeSliceBG.removeAllActions()
+            activeSliceFG.removeAllActions()
+            activeSliceBG.alpha = 1
+            activeSliceFG.alpha = 1
+        }
+    }
+
+    override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
+        guard let touch = touches.first else { return }
+        
+        let location = touch.location(in: self)
+        
+        activeSlicePoints.append(location)
+        redrawActiveSlice()
+        
+        if !isSwooshSoundActive {
+            playSwooshSound()
+        }
+    }
+
+    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+        activeSliceBG.run(SKAction.fadeOut(withDuration: 0.25))
+        activeSliceFG.run(SKAction.fadeOut(withDuration: 0.25))
+    }
+
+    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
+        touchesEnded(touches, with: event)
     }
 
 }
